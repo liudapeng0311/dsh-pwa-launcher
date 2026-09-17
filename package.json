@@ -1,0 +1,45 @@
+{
+  "name": "@llsix/dsh-desktop-launcher",
+  "version": "1.7.3",
+  "private": true,
+  "description": "把 DeepSeek Harness 变成桌面应用：桌面/开始菜单上的图标双击即静默拉起 dsh web 服务，再以浏览器应用窗口打开界面；网页右上角提供一键「真正重启」，并常驻一个「更新」入口可随时检查 dsh 新版本、一键自助升级（停服务→安装→校验→重启，失败自动回滚）。Windows 专用。",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js"
+  },
+  "files": [
+    "lib",
+    "assets",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "author": "llsix",
+  "os": [
+    "win32"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "dsh",
+    "desktop-launcher",
+    "shortcut",
+    "windows",
+    "pwa"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "compatibility": {
+      "dshReleases": {
+        "0.1.5-rc.1": "compatible"
+      }
+    }
+  }
+}

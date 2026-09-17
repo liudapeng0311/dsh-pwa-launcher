@@ -1,0 +1,74 @@
+# @llsix/dsh-desktop-launcher 的补丁层：装到 profile 后自动叠在 dsh-base / dsh-web-app 之上。
+#
+# 只插一行。`inject: ['webServer', 'connection']` 写在插件模块里，所以这一行只在
+# 真正起了 Web 服务的 profile 上生效 —— TUI 之类的 profile 装了它也不会有副作用。
+#
+# ⚠️ 下面 `name` 必须是**安装后的完整包名**，要带 scope。
+#    dsh 的 loader 是把它当模块 import 的，pnpm 按包的真实名字建链接；
+#    这里如果写成裸的 `dsh-desktop-launcher`，会 ERR_MODULE_NOT_FOUND，
+#    **直接把 app 启动搞崩**。而且在本地用 `link:` 装通常还能跑，测不出来 —— 
+#    这个坑来自 @mars-sea/dsh-commandcode-provider 的 patch 注释，照做。
+#
+# ⚠️ 值一定要加引号：以 `@` 开头的 YAML 标量会被当成指示符，解析失败。
+#
+# 每一行的 config 会被整段替换（patch 的语义），所以这里写全这个插件拥有的键。
+
+- insert:
+    - id: desktop-launcher
+      name: "@llsix/dsh-desktop-launcher"
+      config:
+        # 桌面上那个图标叫什么。默认和你 Edge/Chrome 里「安装为应用」得到的那个同名。
+        shortcutName: DeepSeek Harness
+
+        # true = 如果找到浏览器给你生成的那个 PWA 快捷方式，就接管它：
+        #        保留它的图标，把目标换成启动器。视觉上还是原来那个图标。
+        #        「找到」的判据是名字相同、或它本来就指向当前端口 —— 不会碰别人的 PWA。
+        # false = 不动浏览器的快捷方式，插件自己新建一个。
+        adoptBrowserShortcut: true
+
+        # 要不要往这两个地方放图标。
+        desktop: true
+        startMenu: true
+
+        # 打开应用的浏览器：auto / edge / chrome / default
+        # auto = 你系统默认浏览器是 Edge 或 Chrome 就用它，否则交给默认浏览器。
+        browser: auto
+
+        # true = 用应用窗口打开（没有地址栏，和 PWA 一样）。
+        appMode: true
+
+        # 等待服务就绪的最长秒数。
+        startTimeoutSec: 120
+
+        # 启动器落地目录。留空 = %LOCALAPPDATA%\DeepSeekHarness
+        installDir: ''
+
+        # ===== 更新检查与自助升级 =====
+        # 关掉后既不查 registry，也不注入网页里的更新徽标。
+        checkForUpdates: true
+
+        # 第二期：允许徽标里的「更新到此版本」真正触发外部升级脚本
+        # （停服务→npm install→校验→重启，失败自动回滚）。设为 false 则只提醒、不给升级按钮。
+        allowSelfUpdate: true
+
+        # 拿哪个包的 dist-tags 当作「可升版本」来源。用 CLI 包 @deepseek-ai/dsh：它的
+        # latest/next/alpha 标签是干净的（dsh-base 的 latest 标签是坏的 0.0.1-rc.1，别用）。
+        updatePackage: "@deepseek-ai/dsh"
+
+        # 拿哪个包的安装版本当作「当前版本」。用应用核心 bundle @deepseek-ai/dsh-base——
+        # 用户真正跑的是它，CLI 包 @deepseek-ai/dsh 只是启动器壳，版本可能和 app 不一致。
+        updateVersionPackage: "@deepseek-ai/dsh-base"
+
+        # 关注哪些通道，顺序 = 保守 → 激进；第一个是徽标默认「推荐」的那个。
+        # 默认三个都看：任一通道有比你新的版本就提醒，由你在徽标里决定升哪个 / 忽略哪个。
+        updateChannels: [latest, next, alpha]
+
+        # all = 任一通道有更新都提醒（默认，把选择权交给用户）；
+        # recommended-only = 只按主通道（updateChannels 第一个，通常 latest）提醒，不拿 rc/alpha 骚扰。
+        updateNotify: all
+
+        # 版本来源。默认公共 npm 源；有镜像 / 私有源时改这里。
+        updateRegistry: "https://registry.npmjs.org"
+
+        # 单次查询超时（毫秒）。超时按「本次没查到」安静跳过。
+        updateCheckTimeoutMs: 12000
