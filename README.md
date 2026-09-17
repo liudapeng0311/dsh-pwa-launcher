@@ -1,4 +1,4 @@
-# @llsix/dsh-desktop-launcher
+# dsh-pwa-launcher
 
 把 DeepSeek Harness 变成一个「双击桌面图标就能用」的桌面应用。**仅 Windows**（Win10/11）。
 
@@ -8,7 +8,7 @@
 ## 安装
 
 ```sh
-dsh plugin --profile web add @llsix/dsh-desktop-launcher
+dsh plugin --profile web add dsh-pwa-launcher
 ```
 
 然后重启一次 dsh（Ctrl+C 停掉再跑）。插件会在启动时把启动器部署好、把图标接上。
@@ -16,7 +16,7 @@ dsh plugin --profile web add @llsix/dsh-desktop-launcher
 > **要装发布不足 24 小时的版本，必须写精确版本号。**
 > pnpm 11 的 `minimumReleaseAge` 默认 1440 分钟，会把 `@latest` **静默**解析成上一个
 > 版本 —— 命令照样以 0 退出，你以为装上了新版本。例如：
-> `dsh plugin --profile web add @llsix/dsh-desktop-launcher@1.1.0`
+> `dsh plugin --profile web add dsh-pwa-launcher@1.1.0`
 
 ## 卸载
 
@@ -25,7 +25,7 @@ dsh plugin --profile web add @llsix/dsh-desktop-launcher
 powershell -File "$env:LOCALAPPDATA\DeepSeekHarness\scripts\shortcut.ps1" -Action Uninstall
 
 # 2) 再从 profile 移除
-dsh plugin --profile web remove @llsix/dsh-desktop-launcher
+dsh plugin --profile web remove dsh-pwa-launcher
 ```
 
 **顺序不要反。** 先移除插件的话，图标会被留在桌面上 —— 它其实还能用（启动器和
@@ -84,8 +84,8 @@ msedge_proxy.exe --profile-directory=Default --app-id=<id> --app-url=http://127.
 
 ```
 tapIndex(html)            往真正服务出去的 index.html 末尾注入一段自包含脚本（按钮 + 遮罩 + 轮询）
-POST /desktop-launcher/restart         触发一次外部重启（复用 connection 的会话鉴权，未登录返回 401）
-GET  /desktop-launcher/restart-status  前端轮询：新进程起来了没有（用进程随机 nonce 区分「老/新」）
+POST /pwa-launcher/restart         触发一次外部重启（复用 connection 的会话鉴权，未登录返回 401）
+GET  /pwa-launcher/restart-status  前端轮询：新进程起来了没有（用进程随机 nonce 区分「老/新」）
 ```
 
 按钮**不**让 dsh 进程自己重启自己 —— 插件就跑在被重启的那个进程里，自杀再原地复活既不干净
@@ -113,10 +113,10 @@ registry 再查一次），并列出每个较新版本 + 各自通道，可对�
 旧版本**（回滚）。为什么在进程外：插件就跑在被升级的那个 dsh 里，不能自己覆盖正在运行的自己。
 
 ```
-GET  /desktop-launcher/update-check    只读返回最近一次检查结果（含 newer[] 列表，不含令牌）
-POST /desktop-launcher/update-check    手动「重新检查」：按需再跑一次（会真连 registry）后返回最新结果
-POST /desktop-launcher/update-dismiss  {version, ignored} 忽略 / 恢复提醒某个版本
-POST /desktop-launcher/update-apply    {version} 触发一次外部升级（只接受已检测到的候选版本）
+GET  /pwa-launcher/update-check    只读返回最近一次检查结果（含 newer[] 列表，不含令牌）
+POST /pwa-launcher/update-check    手动「重新检查」：按需再跑一次（会真连 registry）后返回最新结果
+POST /pwa-launcher/update-dismiss  {version, ignored} 忽略 / 恢复提醒某个版本
+POST /pwa-launcher/update-apply    {version} 触发一次外部升级（只接受已检测到的候选版本）
 %LOCALAPPDATA%\DeepSeekHarness\update-check.json    每次启动重写：检查结果快照
 %LOCALAPPDATA%\DeepSeekHarness\update-dismiss.json  你忽略过的版本，跨重启保留（删掉即恢复全部提醒）
 %LOCALAPPDATA%\DeepSeekHarness\update-backup\       每次升级前的旧 package.json/lock 备份（回滚用）
@@ -150,7 +150,7 @@ POST /desktop-launcher/update-apply    {version} 触发一次外部升级（只�
 | `updateChannels` | `[latest, next, alpha]` | 关注哪些通道，顺序=保守→激进，第一个是「推荐」 |
 | `updateNotify` | `all` | `all`=任一通道有更新都提醒；`recommended-only`=只按主通道 |
 | `updateRegistry` | `https://registry.npmjs.org` | 镜像 / 私有源改这里 |
-| `updateCheckTimeoutMs` | `8000` | 单次查询超时 |
+| `updateCheckTimeoutMs` | `12000` | 单次查询超时 |
 
 ## 两个容易踩的点（都已在代码里处理）
 
@@ -181,7 +181,7 @@ dsh 每次启动生成一个新的 launch token，`GET /` 在没 cookie 时返�
 
 ## 配置
 
-改 `plugin/cordis.patch.yml` 里 `desktop-launcher` 那一行的 `config`，重启一次 dsh 生效。
+改 `plugin/cordis.patch.yml` 里 `pwa-launcher` 那一行的 `config`，重启一次 dsh 生效。
 
 | 键 | 默认 | 说明 |
 | --- | --- | --- |

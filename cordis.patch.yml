@@ -1,11 +1,11 @@
-# @llsix/dsh-desktop-launcher 的补丁层：装到 profile 后自动叠在 dsh-base / dsh-web-app 之上。
+# dsh-pwa-launcher 的补丁层：装到 profile 后自动叠在 dsh-base / dsh-web-app 之上。
 #
 # 只插一行。`inject: ['webServer', 'connection']` 写在插件模块里，所以这一行只在
 # 真正起了 Web 服务的 profile 上生效 —— TUI 之类的 profile 装了它也不会有副作用。
 #
-# ⚠️ 下面 `name` 必须是**安装后的完整包名**，要带 scope。
+# ⚠️ 下面 `name` 必须和**安装后的包名逐字一致**。本包无 scope，就叫 `dsh-pwa-launcher`。
 #    dsh 的 loader 是把它当模块 import 的，pnpm 按包的真实名字建链接；
-#    这里如果写成裸的 `dsh-desktop-launcher`，会 ERR_MODULE_NOT_FOUND，
+#    这里如果写成别的名字（拼错、或残留旧的 @llsix/dsh-desktop-launcher），会 ERR_MODULE_NOT_FOUND，
 #    **直接把 app 启动搞崩**。而且在本地用 `link:` 装通常还能跑，测不出来 —— 
 #    这个坑来自 @mars-sea/dsh-commandcode-provider 的 patch 注释，照做。
 #
@@ -14,8 +14,8 @@
 # 每一行的 config 会被整段替换（patch 的语义），所以这里写全这个插件拥有的键。
 
 - insert:
-    - id: desktop-launcher
-      name: "@llsix/dsh-desktop-launcher"
+    - id: pwa-launcher
+      name: "dsh-pwa-launcher"
       config:
         # 桌面上那个图标叫什么。默认和你 Edge/Chrome 里「安装为应用」得到的那个同名。
         shortcutName: DeepSeek Harness
