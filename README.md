@@ -80,11 +80,17 @@ dsh plugin --profile web remove dsh-pwa-launcher
 
 ### 更新
 
-每次 dsh 启动后，插件在后台**只读地**查一次 npm registry，同时看
-`latest / next / alpha` 三个通道，凡是有比你当前更新的版本就提醒 ——
+每次 dsh 启动后，插件在后台**只读地**查一次 npm registry（node 内置 `https` 直连，带超时），
+同时看 `latest / next / alpha` 三个通道，凡是有比你当前更新的版本就提醒 ——
 **把选择权交给你**，不替你决定跟哪条流。状态直接写在控件上：
 
 `↑ 有新版 x.y.z`（高亮）· `更新 · 已忽略 n` · `✓ 已是最新` · `更新（未查到）`
+
+> **一次查不到不代表没更新。** 到 npm 的连接会偶发抖动（实测并发请求时约 1/8 会超时），
+> 所以检查会**自动重试 3 次**（退避 0.4s / 1.2s），并且**推迟到启动后 6 秒**才发第一个请求 ——
+> 避开 dsh 自己引导 + 部署启动器那阵最忙的时候。失败时面板会写出**这次的具体原因**
+> （超时 / `ECONNRESET` 等）并提示点「重新检查」再试；**离线时安静跳过**，不影响服务、不弹窗。
+> HTTP 4xx 这类确定性失败不重试（重试也没用）。
 
 点开面板可以**「重新检查」**、看每个候选版本属于哪个通道、对不关心的版本点**「忽略」**
 （已忽略的也照样列出、带**「恢复」**，所以随时能反悔）。面板支持
@@ -124,7 +130,7 @@ dsh plugin --profile web remove dsh-pwa-launcher
 | `updateChannels` | `[latest, next, alpha]` | 关注哪些通道，顺序 = 保守 → 激进，第一个是「推荐」 |
 | `updateNotify` | `all` | `all` = 任一通道有更新都提醒；`recommended-only` = 只按主通道 |
 | `updateRegistry` | `https://registry.npmjs.org` | 镜像 / 私有源改这里 |
-| `updateCheckTimeoutMs` | `12000` | 单次查询超时；超时按「本次没查到」安静跳过 |
+| `updateCheckTimeoutMs` | `12000` | 单次查询超时；超时按「本次没查到」安静跳过（会自动重试） |
 
 > **为什么「当前版本」默认取 `dsh-base` 而不是 `@deepseek-ai/dsh`？** dsh 有两棵版本树：
 > CLI 包 `@deepseek-ai/dsh` 是启动器壳，而实际渲染界面的应用核心是 `@deepseek-ai/dsh-base`，
@@ -238,8 +244,9 @@ dsh 每次启动生成一个新的 launch token，未认证请求返回 **401**�
 ## 开发
 
 ```sh
-npm test          # 客户端注入脚本（假 DOM，28 项）+ 更新探测逻辑（PS 5.1，7 项）
+npm test          # 客户端注入脚本（假 DOM，34 项）+ 更新重试（8 项）+ 更新探测（PS 5.1，7 项）
 npm run test:client
+npm run test:retry
 npm run test:update
 ```
 
