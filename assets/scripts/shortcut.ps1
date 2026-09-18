@@ -1,4 +1,4 @@
-<#
+﻿<#
     shortcut.ps1 —— 把桌面 / 开始菜单上的图标接到启动器上。
 
     由 dsh-desktop-launcher 在每次 dsh 启动时调用（application/plugin 侧，见 lib\index.js）：

@@ -43,6 +43,12 @@
         # 启动器落地目录。留空 = %LOCALAPPDATA%\DeepSeekHarness
         installDir: ''
 
+        # 顶栏避让：网页右上角那两个常驻按钮（重启 / 更新）默认贴右边。dsh 自己的顶栏
+        # 控件（文件 / 窗口 等）在开始对话后才出现，会盖住它们。true = 探测到应用侧
+        # 控件就把整簇左移到它左边、并且让开；探测不到（或控件消失）就回到贴右原位。
+        # false = 永远贴右，不做任何避让。
+        avoidAppButtons: true
+
         # ===== 更新检查与自助升级 =====
         # 关掉后既不查 registry，也不注入网页里的更新徽标。
         checkForUpdates: true
