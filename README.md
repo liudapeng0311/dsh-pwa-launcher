@@ -121,9 +121,18 @@ registry 再查一次），并列出每个较新版本 + 各自通道，可对�
 
 **第二期：面板里每个候选版本带「更新到此版本」按钮**，点一下（二次确认后）就真正升级：插件
 `spawn` 一个游离于 node 进程树之外的 `wscript → update.vbs → update.ps1`，由它完成
-**停服务 → 备份旧版本 → 在 runtime 里 `npm install @deepseek-ai/dsh@<目标> --save-exact` →
-校验 `bin.js --version` 与目标一致 → 自动重启并回连当前窗口**；任一步失败就**自动还原备份并重装回
-旧版本**（回滚）。为什么在进程外：插件就跑在被升级的那个 dsh 里，不能自己覆盖正在运行的自己。
+**停服务 → 备份旧版本 → `npm install @deepseek-ai/dsh@<目标>` →
+校验运行入口自己的 `--version` 与目标一致 → 自动重启并回连当前窗口**；任一步失败就**自动还原
+并重装回旧版本**（回滚）。为什么在进程外：插件就跑在被升级的那个 dsh 里，不能自己覆盖正在运行的自己。
+
+> **它自己会判断 dsh 是怎么装的**，因为「在哪跑 npm install」因装法而异：
+> * **本地 npm 树**（npx 缓存、本地工程、或像本仓库那样锁版本的 `runtime/`）——
+>   从运行入口往上找到**声明了 `@deepseek-ai/dsh` 依赖**的那个 `package.json`，在它那里装。
+> * **全局安装**（`npm i -g`）——用 `npm install -g`。
+>
+> 两种都认不出时**明确报错并告诉你手动怎么办**，绝不会猜一个目录乱装。
+> 校验也以**运行入口自己的版本**为准（不是只看 `package.json` 里的 pin）——pin 是意图，
+> 入口才是事实；全局安装更是根本没有 pin 可看。
 
 ```
 GET  /pwa-launcher/update-check    只读返回最近一次检查结果（含 newer[] 列表，不含令牌）
@@ -132,7 +141,8 @@ POST /pwa-launcher/update-dismiss  {version, ignored} 忽略 / 恢复提醒某�
 POST /pwa-launcher/update-apply    {version} 触发一次外部升级（只接受已检测到的候选版本）
 %LOCALAPPDATA%\DeepSeekHarness\update-check.json    每次启动重写：检查结果快照
 %LOCALAPPDATA%\DeepSeekHarness\update-dismiss.json  你忽略过的版本，跨重启保留（删掉即恢复全部提醒）
-%LOCALAPPDATA%\DeepSeekHarness\update-backup\       每次升级前的旧 package.json/lock 备份（回滚用）
+%LOCALAPPDATA%\DeepSeekHarness\update-backup\       每次升级前的备份（回滚用）
+   └─ <时间戳>\backup.json                          记着装法/安装根/旧版本（回滚就靠它）
 %LOCALAPPDATA%\DeepSeekHarness\logs\update.log      升级/回滚过程日志
 ```
 
@@ -241,3 +251,7 @@ powershell -File "$env:LOCALAPPDATA\DeepSeekHarness\scripts\shortcut.ps1" -Actio
   图标会指向最后启动的那个。
 * 接管只认「名字相同」或「`--app-url` 指向当前端口」的 PWA 快捷方式；两者都不匹配就
   自己新建一个，不会去动别人的快捷方式。
+* **自助升级覆盖两种装法**：本地 npm 树（含 npx 缓存、锁版本本地安装）与 `npm i -g` 全局安装。
+  两种都认不出时（例如 dsh 被某个未见过的包管理器布局安装），「更新到此版本」会**明确报错**
+  并提示你手动 `npm install -g @deepseek-ai/dsh@<版本>`，而不是去猜目录。
+  「只提醒、给你版本号」这部分不受影响，任何装法都能用。
