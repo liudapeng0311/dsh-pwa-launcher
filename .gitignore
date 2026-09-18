@@ -4,3 +4,9 @@ update-backup/
 update-check.json
 update-dismiss.json
 .DS_Store
+
+# 在仓库内直接跑 assets/scripts/*.ps1 做测试时，脚本会按自身位置推导
+# 安装目录并把日志/备份写进 assets/。这些属于运行产物，不能进仓库、也不该被打包。
+assets/logs/
+assets/update-backup/
+assets/launcher.json

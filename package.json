@@ -1,6 +1,6 @@
 {
   "name": "dsh-pwa-launcher",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "private": true,
   "description": "把 DeepSeek Harness 变成桌面应用：桌面/开始菜单上的图标双击即静默拉起 dsh web 服务，再以浏览器应用窗口打开界面；网页右上角提供一键「真正重启」，并常驻一个「更新」入口可随时检查 dsh 新版本、一键自助升级（停服务→安装→校验→重启，失败自动回滚）。Windows 专用。",
   "type": "module",
@@ -22,6 +22,14 @@
   ],
   "license": "MIT",
   "author": "llsix",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liudapeng0311/dsh-pwa-launcher.git"
+  },
+  "homepage": "https://github.com/liudapeng0311/dsh-pwa-launcher#readme",
+  "bugs": {
+    "url": "https://github.com/liudapeng0311/dsh-pwa-launcher/issues"
+  },
   "os": [
     "win32"
   ],
