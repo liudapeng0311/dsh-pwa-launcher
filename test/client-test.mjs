@@ -464,5 +464,67 @@ const popOpen = (e) => !!e.button('dsh-dl-upd-pop')
   check('S20 收起后重绘不会自己冒出来', !afterClose && !popOpen(e), `关闭后=${afterClose} 重绘后=${popOpen(e)}`)
 }
 
+// ---------- 8) 页面正文不许被当成顶栏控件（真实 bug 回归） ----------
+// 用户报了：装了某个插件后打开它的页面，两个按钮被推到页面中间、还盖住了
+// 那个页面的标题。原因：正文（标题 h2 + 说明文字）正好落在按钮那条纵向带子里、
+// 尺寸也够小，被判定成「应用顶栏控件」，于是整簇一路左移。
+// 判据：顶栏控件必然占据**右上角**；正文不会。
+{
+  const e8 = makeEnv()
+  for (const s of captureScripts({ avoidAppButtons: true })) vm.runInContext(s, e8.sandbox)
+  e8.flushTimers(200); e8.tickIntervals()
+  check('S21 前提：初始贴右', parseFloat(e8.button('dsh-dl-restart').style.right) === 10,
+    `right=${e8.button('dsh-dl-restart').style.right}`)
+
+  // 造一个「页面标题」：位于页面中左部，右上角是空的（还原截图里的几何）
+  e8.addWidget({ left: 568, right: 758, top: 8, bottom: 44, width: 190, height: 36 })
+  e8.flushTimers(200); e8.tickIntervals()
+  const r21 = parseFloat(e8.button('dsh-dl-restart').style.right)
+  check('S21 正文标题不触发让位（右上角是空的）', r21 === 10, `right=${r21}（期望 10）`)
+}
+
+// S22：真正的顶栏控件（贴右上角）仍然要让位 —— 别把功能修坏了
+{
+  const e9 = makeEnv()
+  // 真实顶栏按钮簇：贴在右上角，宽约 95px（dsh 的文件/窗口/⋯ 那一排）
+  e9.addWidget({ left: VW - 100, right: VW - 8, top: 8, bottom: 44, width: 92, height: 36 })
+  for (const s of captureScripts({ avoidAppButtons: true })) vm.runInContext(s, e9.sandbox)
+  e9.flushTimers(200); e9.tickIntervals()
+  const r22 = parseFloat(e9.button('dsh-dl-restart').style.right)
+  check('S22 右上角真有控件时仍让位', r22 > 10, `right=${r22}`)
+  check('S22 让位后不与控件重叠', VW - r22 <= VW - 100 + 1, `簇右缘=${VW - r22} 控件左缘=${VW - 100}`)
+}
+
+// S23：让位距离有上限，绝不被推到屏幕中间
+{
+  const e10 = makeEnv()
+  // 造一片「从右缘一直铺到页面中部」的可疑区域
+  e10.addWidget({ left: Math.round(VW * 0.25), right: VW, top: 8, bottom: 44, width: Math.round(VW * 0.75), height: 36 })
+  for (const s of captureScripts({ avoidAppButtons: true })) vm.runInContext(s, e10.sandbox)
+  e10.flushTimers(200); e10.tickIntervals()
+  const r23 = parseFloat(e10.button('dsh-dl-restart').style.right)
+  // restart.right 就是「距右缘的距离」，它不该超过窗口宽度的 35% + 一点余量
+  check('S23 让位距离有上限（不会被推到屏幕中间）', r23 <= VW * 0.4, `right=${r23} 上限≈${Math.round(VW * 0.35)}`)
+}
+
+// S24：忠实还原用户报的那一页 —— 一个居中列页面（max-width:760px; margin:0 auto），
+// 它的页头里有真按钮（标题 + 撑开的 spacer + 右侧 Refresh 按钮），
+// 但整列**够不到窗口右缘**。这种情况必须不让位；否则按钮会被推到页面中间盖住标题。
+{
+  const e11 = makeEnv()   // VW = 1200
+  const colW = 760
+  const colLeft = Math.round((VW - colW) / 2)     // 220
+  const colRight = colLeft + colW                 // 980
+  // 页头标题（左端）
+  e11.addWidget({ left: colLeft, right: colLeft + 190, top: 8, bottom: 44, width: 190, height: 36 })
+  // 页头右侧那个 Refresh 按钮（真按钮，但在列的右端，不贴窗口右缘）
+  e11.addWidget({ left: colRight - 80, right: colRight, top: 8, bottom: 44, width: 80, height: 36 })
+  for (const s of captureScripts({ avoidAppButtons: true })) vm.runInContext(s, e11.sandbox)
+  e11.flushTimers(200); e11.tickIntervals()
+  const r24 = parseFloat(e11.button('dsh-dl-restart').style.right)
+  check('S24 居中列页面（列右端有按钮但不贴窗口右缘）不让位', r24 === 10,
+    `right=${r24}（列右缘=${colRight}，窗口右缘=${VW}）`)
+}
+
 console.log(failures === 0 ? '\n全部通过' : `\n${failures} 项失败`)
 process.exit(failures === 0 ? 0 : 1)
