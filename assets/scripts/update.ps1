@@ -8,14 +8,15 @@
     怎么定位「升级杠杆」（本脚本最关键的一步）
     ------------------------------------------
     dsh 有好几种装法，「在哪跑 npm install」并不一样。**不能认死某个目录名** ——
-    早期版本去找名为 dsh-runtime 的 package.json，那是本项目作者本机 runtime\ 文件夹
-    的名字，别人（npx / 全局安装）永远找不到，功能等于对他无效。现在按装法判定：
+    写死目录名的做法（去找某个特定名字的 package.json）只对作者自己的机器成立，
+    别人（npx / 全局安装）永远找不到，功能等于对他无效，而且失败方式是弹一个
+    「找不到目录」的框，很难看出是设计缺陷。现在按装法判定：
 
       1) 本地 npm 树：从运行入口 bin.js 往上找，谁声明了 @deepseek-ai/dsh 依赖，
          谁就是安装根。这条同时覆盖三种真实布局 ——
            * npx 缓存  %LOCALAPPDATA%\npm-cache\_npx\<hash>\package.json
-           * 本仓库    runtime\package.json（name=dsh-runtime，恰好也声明了该依赖）
-           * 任意本地工程  your-app\package.json
+           * 本地工程  任意目录\package.json（就地 pin 了 dsh 的那种）
+           * 本仓库的开发布局  runtime\package.json（也声明了该依赖）
          升级杠杆：在该目录 npm install @deepseek-ai/dsh@<ver> --save-exact
 
       2) 全局安装：入口落在 `npm root -g` 之下（那种位置没有 owner package.json）。
@@ -68,7 +69,7 @@ function Show-Popup {
     } catch { }
 }
 
-# 去掉「仅大小写不同」的重复环境变量（本机 http_proxy/HTTP_PROXY 四组都在，PS 会抛异常）
+# 去掉「仅大小写不同」的重复环境变量（代理工具常同时设 http_proxy 与 HTTP_PROXY，PS 会抛异常）
 function Get-DedupedEnv {
     $seen = @{}
     foreach ($name in @([System.Environment]::GetEnvironmentVariables('Process').Keys)) {

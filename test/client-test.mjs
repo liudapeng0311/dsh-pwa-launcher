@@ -12,6 +12,7 @@
 import { pathToFileURL } from 'node:url'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { tmpdir } from 'node:os'
 import vm from 'node:vm'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -185,9 +186,12 @@ function captureScripts(config) {
     webServer: { port: 3080, tapIndex: (fn) => { inj = fn('<html><body></body></html>') }, register: () => {} },
     connection: { authenticatedUrl: () => 'http://127.0.0.1:3080/?token=T', authorizeIndex: () => true }
   }
-  // 注意：installDir 故意指向不存在的路径；本文件全程同步并很快 exit，
+  // 注意：installDir 故意指向一个不存在的路径；本文件全程同步并很快 exit，
   // apply() 里 setTimeout(0) 的安装流程没有机会执行。
-  apply(ctx2, { checkForUpdates: true, allowSelfUpdate: true, installDir: 'D:/nonexistent-dsh-dl', ...config })
+  // 用平台临时目录下的合成子目录，而不是写死某个盘符 —— 后者只在作者的机器上
+  // 碰巧"不存在"，换台机器或换个平台就不一定了。
+  const fakeInstallDir = join(tmpdir(), 'dsh-pwa-launcher-not-installed-' + process.pid)
+  apply(ctx2, { checkForUpdates: true, allowSelfUpdate: true, installDir: fakeInstallDir, ...config })
   return [...inj.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1])
 }
 

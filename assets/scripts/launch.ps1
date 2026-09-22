@@ -74,7 +74,7 @@ function Show-Popup {
 $ConfigFile = Join-Path $InstallDir 'launcher.json'
 if (-not (Test-Path $ConfigFile)) {
     $msg = "找不到 launcher.json：`n$ConfigFile`n`n" +
-           "这个文件由 dsh-desktop-launcher 在 dsh 启动时写入。" +
+           "这个文件由 dsh-pwa-launcher 插件在 dsh 每次启动时写入。" +
            "先启动一次 dsh（插件会重写它），或重新安装插件。"
     Write-Log "缺少 launcher.json" 'ERROR'
     Show-Popup -Text $msg -Icon 16
@@ -113,7 +113,8 @@ Write-Log "---- 启动请求：port=$Port node=$NodeExe entry=$DshEntry ----"
 # PowerShell 5.1 的一个坑：进程环境里存在「仅大小写不同」的重复变量名时，
 # Start-Process 带 -RedirectStandardOutput 会抛 ArgumentException
 #（字典中的关键字 http_proxy 所添加的关键字 HTTP_PROXY）。
-# 这台机器上 http_proxy / HTTP_PROXY / https_proxy / HTTPS_PROXY 四组都在，必现。
+# 装了代理工具（Clash / v2ray 之类）的机器上 http_proxy / HTTP_PROXY /
+# https_proxy / HTTPS_PROXY 四组常常同时存在，一旦命中就必然抛这个异常。
 # Windows 的环境变量本身不区分大小写，去掉重复项对语义没有任何影响。
 function Repair-EnvironmentDuplicates {
     $seen = @{}
@@ -152,7 +153,7 @@ function Test-DshAlive {
         $req.ReadWriteTimeout = $TimeoutMs
         $req.AllowAutoRedirect = $false
         $req.Proxy = $null                 # 本机地址不走系统代理，否则代理开着时会误判
-        $req.UserAgent = 'dsh-desktop-launcher'
+        $req.UserAgent = 'dsh-pwa-launcher'
         $resp = $req.GetResponse()
         $resp.Close()
         return $true
