@@ -36,7 +36,10 @@ function makeEnv(opts) {
     if (el.id === 'dsh-dl-restart' || el.id === 'dsh-dl-upd') {
       const w = el.offsetWidth
       const right = parseFloat(el.style.right) || 10
-      const top = parseFloat(el.style.top) || 10
+      // 垂直位置与注入 CSS 保持一致：top:3px + height:30px（见 S25 那组断言）。
+      // 这里别再用「默认 10」—— 假 DOM 不解析 CSS，模型和 CSS 不一致的话，
+      // 垂直方向上的问题就永远测不出来。
+      const top = parseFloat(el.style.top) || 3
       return { left: VW - right - w, right: VW - right, top, bottom: top + 30, width: w, height: 30 }
     }
     // 按钮内部的 span：落在按钮里面，而且**尺寸是真实的**（会通过 >=8px 的筛选）。
@@ -528,6 +531,54 @@ const popOpen = (e) => !!e.button('dsh-dl-upd-pop')
   const r24 = parseFloat(e11.button('dsh-dl-restart').style.right)
   check('S24 居中列页面（列右端有按钮但不贴窗口右缘）不让位', r24 === 10,
     `right=${r24}（列右缘=${colRight}，窗口右缘=${VW}）`)
+}
+
+// S25：垂直位置必须和 dsh 自己的顶部控件在同一条中线上。
+//
+// 为什么单独立一组：按钮的位置写在**注入的 CSS 字符串**里，不走 JS 计算，
+// 假 DOM 不解析 CSS，所以几何模型看不到它 —— 把 top 从 10 改成 3，
+// S1–S24 会全过、什么都没发现。只能直接断言 CSS 本身。
+//
+// 依据（从 dsh 前端产物里读出来的，不是估的）：
+//   dsh 应用顶栏 height:36px；右侧文档预览面板头部（TextPreview .header）height:38px；
+//   两者都从 top:0 起算、内部控件垂直居中。
+//   原值 top:10px + height:30px → 中心 25px，比中线 18px 低 7px，
+//   在面板头旁边看起来就是「浮在控件下面」。
+{
+  const wantTop = 3
+  const wantH = 30
+  const mR = /#dsh-dl-restart\{[^}]*\btop:(\d+)px[^}]*\bheight:(\d+)px/.exec(scripts[0])
+  const mU = /#dsh-dl-upd\{[^}]*\btop:(\d+)px[^}]*\bheight:(\d+)px/.exec(scripts[1])
+  check('S25a 重启按钮的 top/height 能从 CSS 里解析出来', !!mR, mR ? mR[0].slice(0, 58) : '正则未匹配')
+  check('S25b 更新按钮的 top/height 能从 CSS 里解析出来', !!mU, mU ? mU[0].slice(0, 58) : '正则未匹配')
+  if (mR && mU) {
+    const topR = Number(mR[1]), hR = Number(mR[2])
+    const topU = Number(mU[1]), hU = Number(mU[2])
+    check('S25c 两个按钮 top 一致（不许只改一个）', topR === topU, `restart=${topR} upd=${topU}`)
+    check('S25d 两个按钮 height 一致', hR === hU, `restart=${hR} upd=${hU}`)
+    check('S25e 垂直中心压在顶栏中线上（36 / 2 = 18）', topR + hR / 2 === 18,
+      `中心=${topR + hR / 2}（期望 18，即 (36-30)/2=${wantTop}）`)
+    check('S25f 按钮没有探出顶栏底边', topR + hR <= 36, `底边=${topR + hR}（顶栏高 36）`)
+    check('S25g 高度就是 CSS 里写死的那 30px', hR === wantH, `h=${hR}`)
+  }
+  // 更新面板要挂在按钮下方：不能盖住按钮，也不能在天上开一个洞
+  const mPop = /#dsh-dl-upd-pop\{[^}]*\btop:(\d+)px/.exec(scripts[1])
+  const btnBottom = wantTop + wantH
+  check('S25h 更新面板紧贴按钮下方', !!mPop && Number(mPop[1]) >= btnBottom && Number(mPop[1]) <= btnBottom + 10,
+    mPop ? `pop.top=${mPop[1]}（按钮底边=${btnBottom}）` : '正则未匹配')
+
+  // 护栏：CSS 里不许残留「拼接源码」。
+  // 这两段脚本整体是模板字面量，在里面写  引号 + 变量 + 引号  的拼接写法不会被求值，
+  // 生成出来的 CSS 会原样带上那段源码（浏览器忽略该声明）。实测踩过：按钮因此掉回默认
+  // 位置，而且当时所有几何断言都照样通过 —— 只有这条能抓住。
+  //
+  // 只扫带 px 的 CSS 声明（`top:" + X + "px` 这种形状），别去扫脚本里的正常字符串拼接：
+  // 更新脚本本来就有 "…"+变量 的合法拼接（比如拼徽标文案），扫宽了会误报。
+  for (let i = 0; i < scripts.length; i++) {
+    const leftover = /[a-zA-Z-]+:\s*["']\s*\+\s*[A-Za-z_$][\w$]*\s*\+\s*["']\s*px/.exec(scripts[i])
+    check(`S25i 脚本 ${i + 1} 的 CSS 里没有未求值的拼接残留`, !leftover,
+      leftover ? `残留: ${leftover[0]}` : '干净')
+  }
 }
 
 console.log(failures === 0 ? '\n全部通过' : `\n${failures} 项失败`)

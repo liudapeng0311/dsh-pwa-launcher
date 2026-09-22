@@ -254,7 +254,7 @@ dsh 每次启动生成一个新的 launch token，未认证请求返回 **401**�
 ## 开发
 
 ```sh
-npm test          # 客户端注入脚本（假 DOM，34 项）+ 更新重试与 semver 白名单（12 项）+ 更新探测（PS 5.1，7 项）
+npm test          # 客户端注入脚本（假 DOM，44 项）+ 更新重试与 semver 白名单（12 项）+ 更新探测（PS 5.1，7 项）
 npm run test:client
 npm run test:retry
 npm run test:update
