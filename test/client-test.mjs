@@ -36,7 +36,7 @@ function makeEnv(opts) {
     if (el.id === 'dsh-dl-restart' || el.id === 'dsh-dl-upd') {
       const w = el.offsetWidth
       const right = parseFloat(el.style.right) || 10
-      // 垂直位置与注入 CSS 保持一致：top:3px + height:30px（见 S25 那组断言）。
+      // 垂直位置与注入 CSS 保持一致：top:10px + height:30px（见 S25 那组断言）。
       // 这里别再用「默认 10」—— 假 DOM 不解析 CSS，模型和 CSS 不一致的话，
       // 垂直方向上的问题就永远测不出来。
       const top = parseFloat(el.style.top) || 3
@@ -539,14 +539,24 @@ const popOpen = (e) => !!e.button('dsh-dl-upd-pop')
 // 假 DOM 不解析 CSS，所以几何模型看不到它 —— 把 top 从 10 改成 3，
 // S1–S24 会全过、什么都没发现。只能直接断言 CSS 本身。
 //
-// 依据（从 dsh 前端产物里读出来的，不是估的）：
-//   dsh 应用顶栏 height:36px；右侧文档预览面板头部（TextPreview .header）height:38px；
-//   两者都从 top:0 起算、内部控件垂直居中。
-//   原值 top:10px + height:30px → 中心 25px，比中线 18px 低 7px，
-//   在面板头旁边看起来就是「浮在控件下面」。
+// 依据**实测**，不是推算。在运行中的页面里用 getBoundingClientRect 量到的
+// 右侧 dsh 自带控件（DevTools 输出）：
+//   CAGgVG_main / CAGgVG_chevron          top=12 bottom=38 中心=25
+//   nL4_yW_moreButton / _1kL45W_button    top=11 bottom=39 中心=25
+//   _addTab_17p41_346 / _iconButton_* / P300RG_iconButton  top=10 bottom=38 中心=24
+// 即它们占 10..38 这一段、中心 24–25。按钮高 30px，中心 = top + 15，
+// 要落进这个区间 → top ∈ [9, 10]，取 10 → 中心 25，与上面四个控件重合。
+//
+// ⚠️ 曾经按「dsh 顶栏 36px、控件居中」推出 top:3（中心 18），那是错的 ——
+// 36px 是别处的常量。而且当时重启按钮的 CSS 是 3px、更新按钮的内联是 10px，
+// 两个按钮本身就差 7px（用户截图报的「不在同一行」就是这个）。
+// 别再用推算替换实测值。
 {
-  const wantTop = 3
+  const wantTop = 10
   const wantH = 30
+  // 实测的应用控件纵向区间与中心范围（见上）
+  const APP_TOP_MIN = 10, APP_BOTTOM_MAX = 39
+  const APP_CENTER_MIN = 24, APP_CENTER_MAX = 25
   const mR = /#dsh-dl-restart\{[^}]*\btop:(\d+)px[^}]*\bheight:(\d+)px/.exec(scripts[0])
   const mU = /#dsh-dl-upd\{[^}]*\btop:(\d+)px[^}]*\bheight:(\d+)px/.exec(scripts[1])
   check('S25a 重启按钮的 top/height 能从 CSS 里解析出来', !!mR, mR ? mR[0].slice(0, 58) : '正则未匹配')
@@ -554,12 +564,17 @@ const popOpen = (e) => !!e.button('dsh-dl-upd-pop')
   if (mR && mU) {
     const topR = Number(mR[1]), hR = Number(mR[2])
     const topU = Number(mU[1]), hU = Number(mU[2])
+    const center = topR + hR / 2
     check('S25c 两个按钮 top 一致（不许只改一个）', topR === topU, `restart=${topR} upd=${topU}`)
     check('S25d 两个按钮 height 一致', hR === hU, `restart=${hR} upd=${hU}`)
-    check('S25e 垂直中心压在顶栏中线上（36 / 2 = 18）', topR + hR / 2 === 18,
-      `中心=${topR + hR / 2}（期望 18，即 (36-30)/2=${wantTop}）`)
-    check('S25f 按钮没有探出顶栏底边', topR + hR <= 36, `底边=${topR + hR}（顶栏高 36）`)
+    check('S25e 按钮垂直中心落在应用控件的中心区间里（实测 24–25）',
+      center >= APP_CENTER_MIN && center <= APP_CENTER_MAX,
+      `中心=${center}（应用控件中心实测 ${APP_CENTER_MIN}–${APP_CENTER_MAX}）`)
+    check('S25f 按钮纵向不越出应用控件那一段（实测 10–39）',
+      topR >= APP_TOP_MIN - 1 && topR + hR <= APP_BOTTOM_MAX + 1,
+      `按钮 ${topR}..${topR + hR}（应用控件 ${APP_TOP_MIN}..${APP_BOTTOM_MAX}）`)
     check('S25g 高度就是 CSS 里写死的那 30px', hR === wantH, `h=${hR}`)
+    check('S25n 生产值与测试期望值一致', topR === wantTop, `CSS=${topR} 期望=${wantTop}`)
   }
   // 更新面板要挂在按钮下方：不能盖住按钮，也不能在天上开一个洞
   const mPop = /#dsh-dl-upd-pop\{[^}]*\btop:(\d+)px/.exec(scripts[1])
