@@ -10,3 +10,6 @@ update-dismiss.json
 assets/logs/
 assets/update-backup/
 assets/launcher.json
+
+# npm pack 的产物。发布时手动打包并上传到 GitHub Release，不进仓库。
+*.tgz
