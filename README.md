@@ -38,15 +38,17 @@ msedge_proxy.exe --profile-directory=Default --app-id=<id> --app-url=http://127.
 
 ## 安装
 
-**目前从 GitHub 装**（尚未发布到 npm）：
-
 ```sh
 dsh plugin --profile web add https://github.com/liudapeng0311/dsh-pwa-launcher/archive/refs/heads/main.tar.gz
 ```
 
-> 用这个 tarball 直链而不是 `github:owner/repo` —— 后者会被 pnpm 解析成
+> **为什么是这个 tarball 直链，而不是 `dsh plugin add dsh-pwa-launcher`？**
+> 这个包**还没有发布到 npm**，所以按包名装会失败。用上面的直链即可。
+>
+> **为什么不用 `github:liudapeng0311/dsh-pwa-launcher`？** pnpm 会把它解析成
 > `git+ssh://`，**要求你配好 GitHub SSH key**，否则报 `Host key verification failed`。
 > 上面这条不需要 SSH、不需要构建（本包是纯 JS，没有 `prepare` 脚本）。
+> 想要「跟到某个版本」的话，把 URL 里的 `main` 换成 tag 名即可。
 
 装完**重启一次 dsh**（Ctrl+C 停掉再跑）。插件会在启动时把启动器部署好、把图标接上。
 
@@ -206,15 +208,23 @@ POST /pwa-launcher/update-apply    触发一次外部升级
 
 ## 兼容性
 
-在 **dsh 0.1.5-rc.1 + Node 24 + Edge** 上实测通过。包里的
-`dsh.compatibility.dshReleases` 只声明了这一个版本 —— **没有实测过的版本不写进去**。
+实测通过的环境：**dsh 0.1.5-rc.1 / 0.1.5-rc.2 + Node 24 + Edge**（Windows 10/11）。
+
+> 这一行是**给人看的**，不是机器读的声明。`package.json` 里不再写 `dsh.compatibility` ——
+> 那个字段**不在 DSH 的 manifest schema 里**（官方 `dsh-package-manifest` 只定义
+> `bundle` / `profile` / `client` / `configTrees` / `sessionFormatMigration` / `moduleFallback`），
+> 整个 DSH runtime 里没有任何代码读它，写了也只是装饰，反而容易让人以为装错了版本会被拦住。
+>
+> 另外注意「dsh 版本」本身有两棵树：CLI 壳 `@deepseek-ai/dsh` 和实际渲染界面的应用核心
+> `@deepseek-ai/dsh-base` / `dsh-web-app`，两者可以不一致（壳 rc.1 配应用 rc.2 是实测存在的
+> 组合）。上面的兼容环境按**应用核心**记。
 
 ## 已知限制
 
 * **仅 Windows。** `package.json` 声明了 `"os": ["win32"]`，代码里还有一道运行时守卫 ——
   其他系统上装不上，万一装上了也不会做任何事。
-* **尚未发布到 npm**，只能从 GitHub 装（见「安装」）。因此
-  `dsh plugin add dsh-pwa-launcher` 这种写法现在会失败。
+* **尚未发布到 npm。** 所以 `dsh plugin add dsh-pwa-launcher` 这种按包名的写法现在会失败，
+  请用上面「安装」一节里的 tarball 直链。
 * 如果 Edge/Chrome 哪天把 PWA 快捷方式改回原样，下一次 dsh 启动时插件会**自动再接管一次**。
 * 同时跑多个 dsh 实例（多 profile / 多端口）时，`launcher.json` 是**后写覆盖**，
   图标会指向最后启动的那个。
@@ -244,7 +254,7 @@ dsh 每次启动生成一个新的 launch token，未认证请求返回 **401**�
 ## 开发
 
 ```sh
-npm test          # 客户端注入脚本（假 DOM，34 项）+ 更新重试（8 项）+ 更新探测（PS 5.1，7 项）
+npm test          # 客户端注入脚本（假 DOM，34 项）+ 更新重试与 semver 白名单（12 项）+ 更新探测（PS 5.1，7 项）
 npm run test:client
 npm run test:retry
 npm run test:update
