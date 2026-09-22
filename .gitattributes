@@ -1,0 +1,23 @@
+# 统一换行符：仓库里存 LF，检出到工作区时按平台还原。
+#
+# 为什么需要这个文件：这个包在 Windows 上开发，但 .ps1 / .vbs 与 node 代码对
+# 换行符敏感程度不同，而不同机器的 core.autocrlf 设置不一致 —— 之前出现过
+# 「编辑一次就整个文件重写、diff 里全是换行符差异」的情况。显式声明之后，
+# 谁在什么平台上检出都得到一致的结果。
+#
+# 二进制资源不要碰，否则 Git 会试图"修"ICO 里的字节。
+* text=auto
+
+*.ico binary
+*.png binary
+
+# Windows 专用：这两种脚本交给 PowerShell / wscript 执行，CRLF 是原生形式
+*.ps1 text eol=crlf
+*.vbs text eol=crlf
+
+# 其余文本按平台原生（Windows 检出 CRLF，Linux/macOS 检出 LF）
+*.js   text
+*.mjs  text
+*.json text
+*.md   text
+*.yml  text
