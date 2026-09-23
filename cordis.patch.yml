@@ -43,18 +43,13 @@
         # 启动器落地目录。留空 = %LOCALAPPDATA%\DeepSeekHarness
         installDir: ''
 
-        # 顶栏避让：网页右上角那两个常驻按钮（重启 / 更新）默认贴右边。dsh 自己的顶栏
-        # 控件（文件 / 窗口 等）在开始对话后才出现，会盖住它们。true = 探测到应用侧
-        # 控件就把整簇左移到它左边、并且让开；探测不到（或控件消失）就回到贴右原位。
-        # false = 永远贴右，不做任何避让。
-        avoidAppButtons: true
-
         # ===== 更新检查与自助升级 =====
-        # 关掉后既不查 registry，也不注入网页里的更新徽标。
+        # 关掉后既不查 registry、也不注册相关路由；会话头部那个版本按钮会一直停在「检查…」。
         checkForUpdates: true
 
-        # 第二期：允许徽标里的「更新到此版本」真正触发外部升级脚本
-        # （停服务→npm install→校验→重启，失败自动回滚）。设为 false 则只提醒、不给升级按钮。
+        # true = 会话头部的版本按钮发现新版时可直接一键升级
+        #        （停服务 → npm install → 校验 → 重启，失败自动回滚）。
+        # false = 只提醒不给装：点那个按钮只会重新检查一遍（走 update-apply 会吃 403）。
         allowSelfUpdate: true
 
         # 拿哪个包的 dist-tags 当作「可升版本」来源。用 CLI 包 @deepseek-ai/dsh：它的
@@ -65,8 +60,8 @@
         # 用户真正跑的是它，CLI 包 @deepseek-ai/dsh 只是启动器壳，版本可能和 app 不一致。
         updateVersionPackage: "@deepseek-ai/dsh-base"
 
-        # 关注哪些通道，顺序 = 保守 → 激进；第一个是徽标默认「推荐」的那个。
-        # 默认三个都看：任一通道有比你新的版本就提醒，由你在徽标里决定升哪个 / 忽略哪个。
+        # 关注哪些通道，顺序 = 保守 → 激进；第一个是默认「推荐」的那个。
+        # 默认三个都看：任一通道有比你新的版本就提醒，由你决定升哪个 / 忽略哪个。
         updateChannels: [latest, next, alpha]
 
         # all = 任一通道有更新都提醒（默认，把选择权交给用户）；

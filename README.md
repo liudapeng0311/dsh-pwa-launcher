@@ -34,7 +34,7 @@ msedge_proxy.exe --profile-directory=Default --app-id=<id> --app-url=http://127.
 | **装之前** | 服务没跑 → 错误页 |
 | **装之后** | 服务没跑 → 自动拉起 → 界面打开；窗口关了服务还在 |
 
-另外网页右上角会多两个小控件：**⟳ 重启** 和 **更新**（见下文）。
+另外网页里会多一个入口：**会话标题右侧**的「⟳ 重启 | 版本」胶囊（见下文）。
 
 ## 安装
 
@@ -72,34 +72,102 @@ dsh plugin --profile web remove dsh-pwa-launcher
 **顺序不要反。** 先移除插件的话，图标会留在桌面上 —— 它其实还能用（启动器和
 `launcher.json` 都还在），但已经没有任何东西会去刷新它了。
 
-## 网页右上角的两个控件
+## 会话头部那个胶囊
+
+界面上只有**一个**入口：会话标题右侧的 `⟳ 重启 │ 版本` 胶囊，和 dsh 自己的
+「在文件资源管理器中打开工作目录」排在同一行。
+
+> 为什么它长在那里：本插件除了宿主半边，还有一个**浏览器半边**，注册进 dsh 的
+> `conversation.session.header.utilities` 槽（open-in-app 的分裂按钮就在同一个槽里）。
+> 由 React 跟着顶栏一起排版，所以**天生不会和 dsh 自己的控件抢位置**。
+>
+> 早期的做法是往 index.html 注入脚本、把按钮悬浮在窗口右上角 —— 那个位置和 dsh 的
+> 会话头部右上角（分栏视图按钮）重叠，于是需要一整套「扫描顶栏控件 + 整簇左移让位」
+> 的坐标探测来补偿。那套东西已经删掉了，按钮也搬进了槽里。
+
+> **注意**：这个胶囊只在**有会话的时候**存在。dsh 在空白会话（还没开始对话）上会把整个
+> 会话头部隐藏，连这个槽一起。所以刚打开应用时看不到它 —— 发一条消息就出来了。
 
 ### ⟳ 重启
 
 把整个 DeepSeek Harness **连根重启**：彻底停掉当前进程（正在跑的任务/会话会一起停），
 再自动拉起，当前窗口自己轮询到新服务并重连刷新。不用去双击桌面图标，
-也不用管「关窗口只是关窗口」这件事。点击前有二次确认。
+也不用管「关窗口只是关窗口」这件事。点击前有二次确认，之后会盖一张进度卡。
 
-### 更新
+> 重启完成的判据是**进程指纹变了并且新进程已就绪** —— 光收到 `ready` 不够：
+> 命令刚发出时老进程还没退，它也会答 `ready`，只看这个会在服务真正重启前就刷新页面。
+
+### 版本按钮
+
+显示当前状态，**点它就是干活**：
+
+| 显示 | 点一下会做什么 |
+|---|---|
+| `检查…` | 什么都不做（正在等宿主后台那次检查的结果） |
+| `↑ 有新版 x.y.z`（高亮） | **升级**：只有一个候选时直接二次确认；**多个候选时先弹选版卡**（见下） |
+| `✓ 已是最新` | 重新检查一遍 |
+| `已忽略 n` | 重新检查一遍 |
+| `未查到` | 重试一次（多半是网络抖动） |
+
+`allowSelfUpdate: false` 时，`↑ 有新版` 只提醒、不安装，点它退化成「重新检查」。
 
 每次 dsh 启动后，插件在后台**只读地**查一次 npm registry（node 内置 `https` 直连，带超时），
 同时看 `latest / next / alpha` 三个通道，凡是有比你当前更新的版本就提醒 ——
-**把选择权交给你**，不替你决定跟哪条流。状态直接写在控件上：
-
-`↑ 有新版 x.y.z`（高亮）· `更新 · 已忽略 n` · `✓ 已是最新` · `更新（未查到）`
+**把选择权交给你**，不替你决定跟哪条流。
 
 > **一次查不到不代表没更新。** 到 npm 的连接会偶发抖动（并发请求时更明显，实测大约每 8 个
 > 请求会挂掉 1 个），所以检查会**自动重试 3 次**（退避 0.4s / 1.2s），并且**推迟到启动后 6 秒**
-> 才发第一个请求 —— 避开 dsh 自己引导 + 部署启动器那阵最忙的时候。失败时面板会写出
-> **这次的具体原因**（超时 / `ECONNRESET` 等）并提示点「重新检查」再试；**离线时安静跳过**，
-> 不影响服务、不弹窗。HTTP 4xx 这类确定性失败不重试（重试也没用）。
+> 才发第一个请求 —— 避开 dsh 自己引导 + 部署启动器那阵最忙的时候。失败时按钮的 tooltip 会写出
+> **这次的具体原因**（超时 / `ECONNRESET` 等）；**离线时安静跳过**，不影响服务、不弹窗。
+> HTTP 4xx 这类确定性失败不重试（重试也没用）。
 
-点开面板可以**「重新检查」**、看每个候选版本属于哪个通道、对不关心的版本点**「忽略」**
-（已忽略的也照样列出、带**「恢复」**，所以随时能反悔）。面板支持
-**再点一次按钮 / 点页面别处 / 按 Esc** 三种方式关闭。
+**宿主怎么算「推荐哪个」。** `target` = `newer` 里第一个未被忽略的项，而 `newer` 是按
+`updateChannels` 的顺序（默认 `[latest, next, alpha]`，保守 → 激进）收集、且只收
+**严格比当前版本新**的。所以推荐值是「最保守通道里的可更新项」，**不是版本号最大的那个**：
 
-**「更新到此版本」**会真正升级：停服务 → 备份 → `npm install` → 校验 →
+| 情况 | 候选 | 推荐 |
+|---|---|---|
+| `latest=0.1.6`、`alpha=0.1.7-alpha.2` | 两个 | `0.1.6`（latest 优先） |
+| `next=0.1.7-rc.1`、`alpha=0.1.7-alpha.2` | 两个 | `0.1.7-rc.1`（通道更保守，且 semver 里 rc > alpha） |
+| `next=0.1.7-rc.1`、`alpha=0.1.8-alpha.1` | 两个 | `0.1.7-rc.1`（通道优先于版本号大小） |
+| `latest` 比当前版本旧、`next` 等于当前版本 | 只剩 alpha | alpha |
+
+> 那条「通道优先于版本号」是有意的：`latest/next/alpha` 的排序本身就是对稳定性的表态。
+> 但推荐只是推荐 —— 所以有了下面这张选版卡。
+>
+> `updateNotify: recommended-only` 时 alpha 根本不进候选，也就不会有选版卡。
+
+#### 选版卡：多个候选时自己挑
+
+同时有 rc 和 alpha 可升时，宿主只能替你**推荐一个**（规则：按通道从保守到激进
+`latest → next → alpha`，取第一个「比当前版本新且没被忽略」的）。这个推荐**不等于**「最新」
+—— 比如 `next=0.1.7-rc.1`、`alpha=0.1.8-alpha.1` 时，推荐的是 rc，尽管按版本号 alpha 更大。
+所以候选多于一个时，点版本按钮会先摆出**选版卡**：
+
+```
+升级到哪个版本？
+当前版本 0.1.5-rc.3。下面是这次查到的全部较新版本，按通道从保守到激进排列。
+
+  ◉ 0.1.7-rc.1       候选通道 · 已选
+  ○ 0.1.8-alpha.1    前沿通道
+
+  [ 升级到 0.1.7-rc.1 ]  [ 取消 ]
+  预发布版本（rc / alpha）可能不稳定。升级会停掉当前服务，失败会自动回滚。
+```
+
+几条行为约定：
+
+* **默认选中宿主推荐的那个**，多候选时不会替你决定，但也不会让你白挑一次；
+* 卡片里列的是 `newer` 的**全部**候选，服务端白名单校验的也正是这个列表 —— 所以
+  列表里任何一个都装得成，不只是被推荐的那个；
+* 「曾忽略」的候选**照样可以选**（只是标一下）。选了它提醒会恢复 —— 装完你就是那个
+  版本了，旧版本的忽略项不再匹配；
+* 选版期间**不算「进行中」**：重启按钮照常可用，再点一次版本按钮就收起卡片；
+* 提交前仍有一次系统确认框（写清目标和当前版本，以及失败会回滚）。
+
+**升级**会真正动手：停服务 → 备份 → `npm install` → 校验 →
 自动重启并回连当前窗口；**任何一步失败都会自动回滚**到原来的版本。
+整个过程有一张进度卡，超时或失败会把原因写出来（并可收起继续用）。
 
 > **它会自己判断你的 dsh 是怎么装的**，因为「在哪跑 npm install」因装法而异：
 > * **本地 npm 树**（npx 缓存、本地工程、锁版本的本地安装）——从运行入口往上找到
@@ -123,10 +191,9 @@ dsh plugin --profile web remove dsh-pwa-launcher
 | `browser` | `auto` | `auto` / `edge` / `chrome` / `default` |
 | `appMode` | `true` | 应用窗口（无地址栏，和 PWA 一样）还是普通标签页 |
 | `startTimeoutSec` | `120` | 等服务就绪的上限 |
-| `avoidAppButtons` | `true` | 顶栏避让：dsh 顶栏控件出现时把两个控件左移让开，消失后回原位 |
 | `installDir` | `''` | 留空 = `%LOCALAPPDATA%\DeepSeekHarness` |
-| `checkForUpdates` | `true` | 关掉则既不查、也不注入更新控件、还不注册相关路由 |
-| `allowSelfUpdate` | `true` | 允许「更新到此版本」触发外部升级；`false` = 只提醒、不给升级按钮 |
+| `checkForUpdates` | `true` | 关掉则既不查、也不注册相关路由（版本按钮会停在「检查…」） |
+| `allowSelfUpdate` | `true` | 允许版本按钮一键升级；`false` = 只提醒，点它只重新检查 |
 | `updatePackage` | `@deepseek-ai/dsh` | 拿哪个包的 dist-tags 当「可升版本」来源 |
 | `updateVersionPackage` | `@deepseek-ai/dsh-base` | 拿哪个包的安装版本当「当前版本」（真正跑的应用核心） |
 | `updateChannels` | `[latest, next, alpha]` | 关注哪些通道，顺序 = 保守 → 激进，第一个是「推荐」 |
@@ -139,15 +206,9 @@ dsh plugin --profile web remove dsh-pwa-launcher
 > 两者版本可能不一致。控件显示的是**你真正在跑的应用**那一个。
 > 「可升版本」则取自 CLI 包的 dist-tags（它的 `latest/next/alpha` 标签是干净的）。
 
-> **顶栏避让。** dsh 自己的顶栏控件（文件、窗口等）是**开始对话之后**才出现的，
-> 位置正好和这两个控件重叠。所以它们会自己探测：**先看右上角有没有东西**
-> —— 有就让开，没有就保持贴右原位。判定不认 dsh 的内部 class（版本一变就会失效），
-> 而是问浏览器「右上角这块地方归谁」，所以对 dsh 升级是稳的。
->
-> 那个「先看右上角」的锚点很关键：一些插件的页面是**居中列**
-> （`max-width` + `margin:0 auto`），正文和页头按钮都够不到窗口右缘。
-> 没有锚点的话，这些正文会被误判成顶栏控件，两个控件就会被推到页面中间
-> 并盖住对方标题。另外让位距离有上限，不会被推到屏幕中部。
+> **`avoidAppButtons` 已经没有了。** 那个配置是给早期「悬浮在右上角」的按钮做顶栏避让用的：
+> dsh 自己的顶栏控件开始对话后才出现，位置和它们重叠，所以只能靠坐标探测整簇左移。
+> 按钮搬进会话头部的槽之后，重叠问题从根上消失，那套探测和这个配置一起删掉了。
 
 ## 手动操作
 
@@ -171,6 +232,24 @@ powershell -File "$env:LOCALAPPDATA\DeepSeekHarness\scripts\shortcut.ps1" -Actio
 %LOCALAPPDATA%\DeepSeekHarness\launcher.json       当前启动参数（每次 dsh 启动重写）
 ```
 
+### 会话头部那个胶囊一直显示「检查…」
+
+它读的是宿主后台那次检查的结果，自己不联网。一直停在「检查…」基本是两种情况：
+
+1. **检查被关掉了。** `checkForUpdates: false` 时宿主不注册 `/pwa-launcher/update-check`，
+   按钮拿不到任何结果。改 `cordis.patch.yml` 里那一行再重启。
+2. **配置被 GUI 覆盖了。** 在设置里改过本插件的配置时，用户层会压住
+   `cordis.patch.yml` 那一层。去插件的设置卡片里确认 `checkForUpdates` 是开的。
+
+### 会话头部没有这个胶囊
+
+它会**注册失败就整体不出现**（渲染不出来时宁可不显示，也不留一个空白按钮）。按顺序查：
+
+1. 页面**完整刷新**过一次没有 —— 浏览器半边是在首次加载页面时随 boot 图一起注册的。
+2. 浏览器控制台有没有 `client-modules:` 开头的报错（那是浏览器半边的加载失败）。
+3. 会话是否已经存在 —— 这个槽是 **session 作用域**的，空白页（还没有会话）上没有头部，
+   自然也不会有这个胶囊。
+
 ## 它内部怎么做的
 
 ```
@@ -192,15 +271,46 @@ powershell -File "$env:LOCALAPPDATA\DeepSeekHarness\scripts\shortcut.ps1" -Actio
 （所以 dsh 升级不会把它们弄坏）：
 
 ```
-ctx.webServer.tapIndex(html)          往真正服务出去的 index.html 注入自包含脚本
 ctx.webServer.register({ path })      注册下面这几条自定义路由
 ctx.connection.authorizeIndex(...)    复用 dsh 自己的会话鉴权（未登录返回 401）
 ctx.connection.authenticatedUrl(...)  取本次进程的带令牌地址
 
 POST /pwa-launcher/restart         触发一次外部重启
-GET  /pwa-launcher/restart-status  前端轮询新进程起来了没有
+GET  /pwa-launcher/restart-status  前端轮询新进程起来了没有（带进程指纹 nonce）
+GET  /pwa-launcher/update-check    后台那次版本检查的结果（含 canApply）
+POST /pwa-launcher/update-check    手动重新检查一次（真连 registry）
+POST /pwa-launcher/update-dismiss  忽略 / 恢复提醒某个版本
 POST /pwa-launcher/update-apply    触发一次外部升级
 ```
+
+界面上的胶囊走的是另一条路：本包同时是一个**双面包**，`package.json` 里声明了
+`dsh.client`，浏览器半边入口是 `./client`（`lib/client.js`）：
+
+```
+package.json  "dsh": { "client": { "platform": "web", "inject": [...] } }
+              "exports": { "./client": "./lib/client.js" }
+
+lib/client.js   window.__ModuleLoader__.load({ id, factory })   ← 惰性 CJS 工厂
+                  └─ ctx.slots.register(conversation.session.header.utilities, …)
+```
+
+`lib/client.js` 是**构建产物**，源文件在 `client/src/`：
+
+```sh
+node client/build.mjs      # 合并 client/src/*.js → lib/client.js（改完源文件必须跑）
+```
+
+> 为什么要有这一步：dsh 的浏览器半边不是普通 ESM，而是「惰性 CJS 工厂」——
+> 外层必须是 `window.__ModuleLoader__.load({ id, factory })`，模块体在工厂闭包里、
+> import 变成显式 `require(...)`。仓库内那些 TS 插件靠 `tsdown` 的 `clientBundle`
+> preset 产出这个形状，而那个 preset **没有随包发布**（见 `dsh-client-modules` 的
+> README：「仓库外的插件得自己复现这个构建」）。这里用 30 行 node 脚本自己复现，
+> 不引任何第三方构建依赖。
+>
+> 构建器只允许 `require('react')` 一个模块 —— 它在浏览器平台种子表
+> （`PLATFORM_MODULES`）里。其它 `@deepseek-ai/dsh-client-ui-*` 包虽然在种子表里，
+> 但它们的导出名不在本包能核对的契约里，用它们等于把「按钮能不能画出来」
+> 赌在别的包的内部实现上，所以这个控件**只用 React + 自己的 CSS**。
 
 **为什么不原地重启/升级自己**：插件就跑在被重启的那个 dsh 进程里，自杀再原地复活不干净
 也做不到（Windows 上覆盖正在运行的文件还会撞锁）。所以它 `spawn` 一个游离于 node
@@ -254,15 +364,34 @@ dsh 每次启动生成一个新的 launch token，未认证请求返回 **401**�
 ## 开发
 
 ```sh
-npm test          # 客户端注入脚本（假 DOM，44 项）+ 更新重试与 semver 白名单（12 项）+ 更新探测（PS 5.1，7 项）
-npm run test:client
-npm run test:retry
-npm run test:update
+npm test              # 全部：构建浏览器半边 → 四组测试
+npm run build:client  # 只重建 lib/client.js（改了 client/src/ 之后必须跑）
+npm run test:plugin   # 浏览器半边：胶囊、词典、点击、重启/升级状态机（26 项）
+npm run test:host     # 宿主路由：注册、鉴权、握手字段、版本白名单（11 项）
+npm run test:retry    # 更新重试与 semver 白名单（12 项）
+npm run test:update   # 更新探测（PS 5.1，7 项）
 ```
 
-测试的取法是「截获插件**真正注入**的那段脚本，放进假 DOM 里跑」，
+测试的取法是「截获插件**真正加载**的那段代码，放进假环境里跑」，
 以及「真起一次探测流程看它认不认得出装法」——验的是实际会跑到用户机器上的代码，
 而不是对它的复述。
+
+`test/plugin-test.mjs` 刻意**不装 React / jsdom**：本包没有第三方依赖，测试也不该为了
+跑一次就引入它们。里面自带一层够用的 React 替身（`createElement` 返回可遍历的节点树，
+函数组件当场调用，`useState` / `useEffect` / `useRef` 在 render 期间同步落实），
+验的是 `lib/client.js` 本身。四个已经踩过的坑写在文件注释里，别改回去：
+
+* `check()` **必须支持异步**——一半用例要走 promise，同步版本会把断言失败变成
+  未处理的 rejection，测试照样报「全部通过」。
+* 沙箱里 `window` 和 `globalThis` **必须是同一个对象**（浏览器就是这样）。
+  搭成两个对象的话，`globalThis.__DSH_DL_NONCE__` 读到 `undefined`，
+  「指纹没变就不跳转」那条用例会**假装通过**。
+* `createElement` **必须当场调用函数组件**，否则进度卡那类断言一直在看一个函数对象。
+* 等异步要用 `fire(定时器)` **await 定时器回调返回的 promise**，别用「空转 N 个微任务」
+  去赌链条长度。
+
+`test/host-route-test.mjs` 需要一个「启动器已就位」的假安装目录（里面放空的
+`restart.vbs` / `update.vbs`），否则断言会撞在 503 上、根本走不到要验的逻辑。
 
 ## License
 

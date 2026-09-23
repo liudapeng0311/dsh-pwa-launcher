@@ -21,3 +21,12 @@
 *.json text
 *.md   text
 *.yml  text
+
+# 例外：client/ 源码与它的构建产物锁死 LF。
+#
+# 为什么：lib/client.js 是 client/build.mjs 生成的，构建器写出来的永远是 LF；
+# 而本机 core.autocrlf=true，检出会把它变成 CRLF —— 于是「构建一次」就会产生一个
+# 假的整文件 diff，而且工作区那份和测试实际加载的那份字节并不一致。
+# 构建产物就是浏览器要加载的东西，它的字节应当是确定的，所以这里不让平台改写。
+client/**            text eol=lf
+lib/client.js        text eol=lf

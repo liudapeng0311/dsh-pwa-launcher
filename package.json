@@ -1,21 +1,26 @@
 {
   "name": "dsh-pwa-launcher",
-  "version": "1.10.3",
+  "version": "1.11.0",
   "private": true,
-  "description": "把 DeepSeek Harness 变成桌面应用：桌面/开始菜单上的图标双击即静默拉起 dsh web 服务，再以浏览器应用窗口打开界面；网页右上角提供一键「真正重启」，并常驻一个「更新」入口可随时检查 dsh 新版本、一键自助升级（停服务→安装→校验→重启，失败自动回滚）。Windows 专用。",
+  "description": "把 DeepSeek Harness 变成桌面应用：桌面/开始菜单上的图标双击即静默拉起 dsh web 服务，再以浏览器应用窗口打开界面；会话标题右侧提供「重启 | 版本」胶囊（注册进 dsh 的会话头部槽），可一键重启、检查新版本并自助升级（停服务→安装→校验→重启，失败自动回滚）。Windows 专用。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
-    ".": "./lib/index.js"
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
   },
   "scripts": {
-    "test": "node test/client-test.mjs && node test/update-retry-test.mjs && powershell -NoProfile -ExecutionPolicy Bypass -File test/update-detect-test.ps1",
-    "test:client": "node test/client-test.mjs",
+    "build:client": "node client/build.mjs",
+    "test": "node client/build.mjs && node test/plugin-test.mjs && node test/host-route-test.mjs && node test/update-retry-test.mjs && powershell -NoProfile -ExecutionPolicy Bypass -File test/update-detect-test.ps1",
+    "test:plugin": "node test/plugin-test.mjs",
+    "test:host": "node test/host-route-test.mjs",
     "test:retry": "node test/update-retry-test.mjs",
     "test:update": "powershell -NoProfile -ExecutionPolicy Bypass -File test/update-detect-test.ps1"
   },
   "files": [
     "lib",
+    "client",
     "assets",
     "cordis.patch.yml",
     "README.md",
@@ -50,6 +55,12 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale"
+      ]
     }
   }
 }
